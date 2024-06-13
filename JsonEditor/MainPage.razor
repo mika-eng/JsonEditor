@@ -1,0 +1,89 @@
+﻿@using Microsoft.JSInterop
+@using Microsoft.Win32
+@inject IJSRuntime JsRuntime
+
+<div id="jse-container" class="jse-theme-dark" style="height: 100vh"></div>
+<button id="jse-interface" @onchange="HandleCommand" hidden></button>
+
+@code {
+    private string _filePath = "Untitled";
+    private bool _hasBeenSaved;
+    
+    /// <summary>
+    /// Raises when the json file has been changed or a new json file has been loaded.
+    /// </summary>
+    public static event Action<string>? FileChanged;
+
+    /// <inheritdoc/>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        if (firstRender && await JsRuntime.TryInvoke("initialize"))
+        {
+            FileChanged?.Invoke(_filePath);
+        }
+    }
+    
+    private async Task HandleCommand(ChangeEventArgs args)
+    {
+        var value = args.Value as string;
+        if (string.IsNullOrEmpty(value)) return;
+        var command = value[..1];
+                
+        switch (command)
+        {
+            case "0":
+                FileChanged?.Invoke($"*{_filePath}");
+                return;
+            case "1":
+                await HandleOnOpen();
+                return;
+            case "2":
+                await HandleOnSave(value[1..]);
+                return;
+            case "3":
+                await HandleOnSaveAs(value[1..]);
+                return;
+        }
+    }
+    
+    private async Task HandleOnOpen()
+    {
+        var openFileDialog = new OpenFileDialog
+        {
+            Filter = "JSON file (*.json)|*.json"
+        };
+        if (openFileDialog.ShowDialog() != true) return;
+        
+        _filePath = openFileDialog.FileName;
+        await JsRuntime.InvokeVoidAsync("setContent", await System.IO.File.ReadAllTextAsync(_filePath));
+        FileChanged?.Invoke(_filePath);
+        _hasBeenSaved = true;
+    }
+    
+    private async Task HandleOnSave(string content)
+    {
+        if (!_hasBeenSaved)
+        {
+            await HandleOnSaveAs(content);
+            return;
+        }
+        
+        await System.IO.File.WriteAllTextAsync(_filePath, content);
+        FileChanged?.Invoke(_filePath);
+        await JsRuntime.InvokeVoidAsync("disableCanSave");
+    }
+    
+    private async Task HandleOnSaveAs(string content)
+    {
+        var saveFileDialog = new SaveFileDialog        
+        {
+            Filter = "JSON file (*.json)|*.json"
+        };
+        if (saveFileDialog.ShowDialog() != true) return;
+        
+        _filePath = saveFileDialog.FileName;
+        _hasBeenSaved = true;
+        await HandleOnSave(content);
+    }
+}
