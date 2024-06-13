@@ -27,6 +27,8 @@
       <EmbeddedResource Include="wwwroot\jse-wrapper.js" />
       <Content Remove="wwwroot\standalone.js" />
       <EmbeddedResource Include="wwwroot\standalone.js" />
+      <Content Remove="wwwroot\LICENSE.md" />
+      <EmbeddedResource Include="wwwroot\LICENSE.md" />
     </ItemGroup>
     
 </Project>
